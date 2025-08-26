@@ -1,0 +1,5 @@
+*.xlsx
+
+*.gsheet
+
+data/parsha_summ_data.gsheet
