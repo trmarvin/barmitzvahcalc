@@ -17,7 +17,7 @@ while True:
     choice = input("Enter your choice: ").strip().upper()
 
     if choice == "A":
-        # --- input validation loop ---
+        # ---- input validation loop ----
         while True:
             birthdate = input("Please enter your birthdate (YYYY-MM-DD): ").strip()
             try:
@@ -25,17 +25,15 @@ while True:
             except ValueError as e:
                 print(f"Invalid date: {e}. Use YYYY-MM-DD.")
                 continue
-
             if greg_date < GREGORIAN_START:
                 print("Please use a date on/after 1582-10-15 (Gregorian reform).")
                 continue
             if greg_date > date.today():
                 print("Birthdate cannot be in the future.")
                 continue
+            break  # valid date
 
-            print("Valid date:", greg_date)
-            break
-
+        # ---- API call ----
         url = "https://www.torahcalc.com/api/dateconverter/gregtoheb"
         params = {
             "year": greg_date.year,
@@ -43,24 +41,16 @@ while True:
             "day": greg_date.day,
             "afterSunset": "false",
         }
+        try:
+            resp = requests.get(url, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json().get("data", {})
+            print(f"\nYour Hebrew birthday is: {data.get('displayEn')} \n{data.get('displayGematriya')}")
+        except Exception as e:
+            print("There was a problem fetching the Hebrew date:", e)
 
-        hebrew_date = {
-            'success': True,
-            'data': {
-            'year': 5738,
-            'month': 3,
-            'day': 18,
-            'monthName': 'Sivan',
-            'displayEn': '18th of Sivan, 5738',
-            'displayHe': '18 סִיוָן, 5738',
-            'displayGematriya': 'י״ח סִיוָן תשל״ח'
-            }
-        }
-
-        data = hebrew_date["data"]
-
-        print("Your Hebrew birthday is:", data["displayEn"])
-        print("Hebrew:", data["displayGematriya"])
+        # ---- pause before returning to menu ----
+        input("\nPress Enter to return to the menu...")
 
     elif choice == "B":
         print("Enjoy your special parsha! Goodbye!")
