@@ -1,8 +1,10 @@
-from datetime import datetime
+from datetime import datetime, date
 
 # from date_convert import hebrew_date
 # from parsha_find import parsha_calc
 # from pull_info import parsha_info
+
+GREGORIAN_START = date(1582, 10, 15)
 
 def welcome_menu():
     print("\nWelcome to the Bar/Bat Mitzvah Calculator!")
@@ -13,22 +15,33 @@ def welcome_menu():
     print("A - Calculate Bar Mitzvah date")
     print("B - Exit")
 
-while True:   
+while True:
     welcome_menu()
     choice = input("Enter your choice: ").strip().upper()
- 
+
     if choice == "A":
-        while True: 
-            greg_birthdate = input("Please enter your birthdate on the civil (Gregorian) calendar in the format YYYY-MM-DD: ").strip()
+        while True:
+            s = input("Please enter your birthdate (YYYY-MM-DD): ").strip()
             try:
-                birthdate = datetime.strptime(greg_birthdate, "%Y-%m-%d").date()
-                print("Valid date:", birthdate)
-                break  # exit the loop if valid
-            except ValueError:
-                print("Invalid format. Please try again (use YYYY-MM-DD).")
+                birthdate = datetime.strptime(s, "%Y-%m-%d").date()
+            except ValueError as e:
+                print(f"Invalid date: {e}. Use YYYY-MM-DD.")
+                continue
+
+            if birthdate < GREGORIAN_START:
+                print("Please use a date on/after 1582-10-15 (Gregorian reform).")
+                continue
+            if birthdate > date.today():
+                print("Birthdate cannot be in the future.")
+                continue
+
+            print("Valid date:", birthdate)
+            break  
+
     elif choice == "B":
         print("Enjoy your special parsha! Goodbye!")
-        break   
+        break
+
     else:
         print("Invalid choice. Please try again.")
 
