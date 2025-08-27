@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from urllib.parse import quote
 import requests
+
 
 GREGORIAN_START = date(1582, 10, 15)
 
@@ -11,10 +13,6 @@ def welcome_menu():
     print("Please select an option:")
     print("A - Calculate Bar Mitzvah date")
     print("B - Exit")
-
-hebrew_date = None
-greg_date = None  # will be a datetime.date
-bar_mitzvah_date = None
 
 while True:
     welcome_menu()
@@ -73,7 +71,7 @@ while True:
             else:
                 print("Invalid choice. Please try again.\n")
 
-        # compute closest Shabbat on/after 13+1
+        # ---- compute closest Shabbat on/after 12+1 or 13+1 ----
         def next_shabbat(d):
             # Monday=0 ... Saturday=5, Sunday=6
             days_ahead = (5 - d.weekday()) % 7
@@ -105,17 +103,96 @@ while True:
             return (item.get("name") or {}).get("en")
 
         shab_str = shabbat_date.strftime("%Y-%m-%d")
+        
         try:
             parsha_israel   = get_parsha_name(shabbat_date, israel=True)
             parsha_diaspora = get_parsha_name(shabbat_date, israel=False)
 
             print("The Shabbat of your bar mitzvah is:", shab_str)
-            print("Parsha (Israel):  ", parsha_israel or "(unknown)")
-            print("Parsha (Diaspora):", parsha_diaspora or "(unknown)")
+
+            # Normalize for comparison
+            if parsha_israel and parsha_diaspora:
+                if parsha_israel.strip().lower() == parsha_diaspora.strip().lower():
+                    # Same parsha → only print once
+                    print("Parsha (Israel & Diaspora):", parsha_israel)
+                else:
+                    # Different → print both
+                    print("Parsha (Israel):  ", parsha_israel)
+                    print("Parsha (Diaspora):", parsha_diaspora)
+            else:
+                # If one or both are missing
+                print("Parsha (Israel):  ", parsha_israel or "(unknown)")
+                print("Parsha (Diaspora):", parsha_diaspora or "(unknown)")
+
         except requests.RequestException as e:
             print("Problem fetching parsha data:", e)
+        # try:
+        #     parsha_israel   = get_parsha_name(shabbat_date, israel=True)
+        #     parsha_diaspora = get_parsha_name(shabbat_date, israel=False)
 
-            input("\nPress Enter to return to the menu...")
+        #     print("The Shabbat of your bar mitzvah is:", shab_str)
+        #     print("Parsha (Israel):  ", parsha_israel or "(unknown)")
+        #     print("Parsha (Diaspora):", parsha_diaspora or "(unknown)")
+        # except requests.RequestException as e:
+        #     print("Problem fetching parsha data:", e)
+
+        name_israel   = parsha_israel.strip().lower()
+        name_diaspora = parsha_diaspora.strip().lower()
+        
+        # ---- API 3: parsha info ----
+
+        # def sefaria_ref_for_parsha(parsha_name: str) -> str | None:
+        #     url = f"https://www.sefaria.org/api/calendars/next-read/{parsha_name.strip()}"
+        #     r = requests.get(url)
+        #     r.raise_for_status()
+        #     nx = r.json()
+        #     # The ref lives here:
+        #     return (nx.get("parasha") or {}).get("ref")
+
+        # ref = sefaria_ref_for_parsha(parsha_israel)
+        # print(ref)
+
+        # ref = sefaria_ref_for_parsha(parsha_diaspora)
+        # print(ref)
+
+        def next_parsha_info(parsha_name: str):
+            url = f"https://www.sefaria.org/api/calendars/next-read/{parsha_name.strip()}"
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            nx = r.json()
+            
+            ref = (nx.get("parasha") or {}).get("ref")
+            date_str = nx.get("date")  # e.g. "2026-06-20T00:00:00"
+            he_date = (nx.get("he_date") or {}).get("en")
+    
+            # parse Gregorian date string
+            date_en = None
+            if date_str:
+                date_en = datetime.fromisoformat(date_str.replace("Z","")).strftime("%A, %B %d, %Y")
+    
+            return {
+                "name": parsha_name,
+                "ref": ref,
+                "greg_date": date_en,
+                "heb_date": he_date
+            }
+
+        # ---- Usage ----
+        info_israel   = next_parsha_info(parsha_israel)
+        info_diaspora = next_parsha_info(parsha_diaspora)
+
+        if name_israel == name_diaspora:
+            # Same parsha → only print once
+            print(f"Both Israel and Diaspora will next read {parsha_israel} on {info_israel['greg_date']} / {info_israel['heb_date']}.")
+        else:
+            # Different → print both separately
+            print(f"Israel next reads {parsha_israel} on {info_israel['greg_date']} / {info_israel['heb_date']}.")
+            print(f"Diaspora reads: {parsha_diaspora} on {info_diaspora['greg_date']} / {info_diaspora['heb_date']}.")
+
+        # print(f"Next time your parsha will be read in Israel: {info_israel['greg_date']} / {info_israel['heb_date']}")
+        # print(f"Next time your parsha will be read in the Diaspora: {info_diaspora['greg_date']} / {info_diaspora['heb_date']}")
+
+        input("\nPress Enter to return to the menu...")
 
     elif choice == "B":
         print("Enjoy your special parsha! Goodbye!")
