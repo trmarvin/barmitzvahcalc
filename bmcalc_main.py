@@ -53,10 +53,6 @@ while True:
         except Exception as e:
             print("There was a problem fetching the Hebrew date.")
 
-        print("Please select an option:")
-        print("F - I am female")
-        print("M - I am male")
-
         while True:
             print("Please select an option:")
             print("F - I am female")
@@ -87,29 +83,39 @@ while True:
 
         shabbat_date = next_shabbat(bar_mitzvah_date)
 
-        # ---- API call 2 ----
-        url = "https://www.hebcal.com/leyning"
-        params = {
-            "cfg": "json",
-            "date": shabbat_date.strftime("%Y-%m-%d"),
-            "i": "on",  # Israel readings; use "off" or omit for Diaspora
-            }
+        # ---- API call set 2: find parsha ----
+        def get_parsha_name(shabbat_date, israel: bool) -> str | None:
+            url = "https://www.hebcal.com/leyning"
+            params = {
+                "cfg": "json",
+                "date": shabbat_date.strftime("%Y-%m-%d"),
+                }
+            params["i"] = "on" if israel else "off"
 
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
+            resp = requests.get(url, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
 
-        items = data.get("items", [])
-        if not items:
-            print("No parsha returned for that date.")
-        else:
+            items = data.get("items", [])
+            if not items:
+                return None
+
             shab_str = shabbat_date.strftime("%Y-%m-%d")
             item = next((it for it in items if it.get("date") == shab_str), items[0])
-            name_en = (item.get("name") or {}).get("en")
-            print("The Shabbat of your bar mitzvah is:", shab_str)
-            print("Parsha:", name_en or "(unknown)")
+            return (item.get("name") or {}).get("en")
 
-        input("\nPress Enter to return to the menu...")
+        shab_str = shabbat_date.strftime("%Y-%m-%d")
+        try:
+            parsha_israel   = get_parsha_name(shabbat_date, israel=True)
+            parsha_diaspora = get_parsha_name(shabbat_date, israel=False)
+
+            print("The Shabbat of your bar mitzvah is:", shab_str)
+            print("Parsha (Israel):  ", parsha_israel or "(unknown)")
+            print("Parsha (Diaspora):", parsha_diaspora or "(unknown)")
+        except requests.RequestException as e:
+            print("Problem fetching parsha data:", e)
+
+            input("\nPress Enter to return to the menu...")
 
     elif choice == "B":
         print("Enjoy your special parsha! Goodbye!")
