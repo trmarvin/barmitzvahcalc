@@ -50,14 +50,13 @@ while True:
             resp = requests.get(url, params=params, timeout=10)
             resp.raise_for_status()
             hebrew_date = resp.json().get("data", {})
-            print(f"\nYour Hebrew birthday is: {hebrew_date.get('displayEn')} "
-                  f"\n{hebrew_date.get('displayGematriya')}")
+            print(f"\nYour Hebrew birthday is: {hebrew_date.get('displayEn')}")
         except Exception as e:
             print("There was a problem fetching the Hebrew date.")
 
         # ---- compute 13 years + 1 day ----
         bar_mitzvah_date = greg_date + relativedelta(years=13, days=1)
-        print("You became bar mitzvah on:", bar_mitzvah_date.strftime("%Y-%m-%d"))
+        print("You are bar mitzvah on:", bar_mitzvah_date.strftime("%Y-%m-%d"))
     
         # compute closest Shabbat on/after 13+1
         def next_shabbat(d):
@@ -69,6 +68,13 @@ while True:
 
         shabbat_date = next_shabbat(bar_mitzvah_date)
 
+        # print("Shabbat date:", shabbat_date)
+        # print("Weekday number:", shabbat_date.weekday())  # should be 5
+        # if shabbat_date.weekday() == 5:
+        #     print("✅ This is Saturday")
+        # else:
+        #     print("❌ This is not Saturday")
+
         # ---- API call 2 ----
         url = "https://www.hebcal.com/leyning"
         params = {
@@ -76,11 +82,22 @@ while True:
             "date": shabbat_date.strftime("%Y-%m-%d"),
             "i": "on",  # Israel readings; use "off" or omit for Diaspora
             }
+
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
 
-        print("The Shabbat of your bar mitzvah is/was:", shabbat_date.strftime("%Y-%m-%d"))
+        items = data.get("items", [])
+        if not items:
+            print("No leyning returned for that date.")
+        else:
+            shab_str = shabbat_date.strftime("%Y-%m-%d")
+            item = next((it for it in items if it.get("date") == shab_str), items[0])
+            name_en = (item.get("name") or {}).get("en")
+            print("The Shabbat of your bar mitzvah is:", shab_str)
+            print("Parsha:", name_en or "(unknown)")
+            if name_he:
+                print("Parsha (he):", name_he)
 
         input("\nPress Enter to return to the menu...")
 
