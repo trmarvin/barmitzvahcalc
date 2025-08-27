@@ -1,4 +1,5 @@
-from datetime import datetime, date
+from datetime import date, datetime
+from dateutil.relativedelta import relativedelta
 import requests
 
 GREGORIAN_START = date(1582, 10, 15)
@@ -11,6 +12,10 @@ def welcome_menu():
     print("Please select an option:")
     print("A - Calculate Bar Mitzvah date")
     print("B - Exit")
+
+hebrew_date = None
+greg_date = None  # will be a datetime.date
+bar_mitzvah_date = None
 
 while True:
     welcome_menu()
@@ -44,14 +49,18 @@ while True:
         try:
             resp = requests.get(url, params=params, timeout=10)
             resp.raise_for_status()
-            data = resp.json().get("data", {})
-            print(f"\nYour Hebrew birthday is: {data.get('displayEn')} \n{data.get('displayGematriya')}")
+            hebrew_date = resp.json().get("data", {})
+            print(f"\nYour Hebrew birthday is: {hebrew_date.get('displayEn')} "
+                  f"\n{hebrew_date.get('displayGematriya')}")
         except Exception as e:
-            print("There was a problem fetching the Hebrew date:", e)
+            print("There was a problem fetching the Hebrew date.")
 
-        # ---- pause before returning to menu ----
         input("\nPress Enter to return to the menu...")
 
+    # ---- compute 13 years + 1 day FIRST ----
+        bar_mitzvah_date = greg_date + relativedelta(years=13, days=1)
+        print("Your thirtheenth birthday:", bar_mitzvah_date.strftime("%Y-%m-%d"))
+    
     elif choice == "B":
         print("Enjoy your special parsha! Goodbye!")
         break
