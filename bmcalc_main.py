@@ -6,9 +6,8 @@ GREGORIAN_START = date(1582, 10, 15)
 
 def welcome_menu():
     print("\nWelcome to the Bar/Bat Mitzvah Calculator!")
-    print("This program will tell you the parsha (Shabbat Torah reading)")
-    print("closest to your thirteenth Hebrew birthday, plus one day,")
-    print("as required by Jewish law.")
+    print("This program will tell you the parsha (Shabbat Torah reading).")
+    print("closest to your thirteenth Hebrew birthday ( plus one day).")
     print("Please select an option:")
     print("A - Calculate Bar Mitzvah date")
     print("B - Exit")
@@ -54,26 +53,39 @@ while True:
         except Exception as e:
             print("There was a problem fetching the Hebrew date.")
 
-        # ---- compute 13 years + 1 day ----
-        bar_mitzvah_date = greg_date + relativedelta(years=13, days=1)
-        print("You are bar mitzvah on:", bar_mitzvah_date.strftime("%Y-%m-%d"))
-    
+        print("Please select an option:")
+        print("F - I am female")
+        print("M - I am male")
+
+        while True:
+            print("Please select an option:")
+            print("F - I am female")
+            print("M - I am male")
+
+            choice = input("Enter your choice: ").strip().upper()
+
+            if choice == "F":
+                # ---- compute 12 years + 1 day ----
+                bar_mitzvah_date = greg_date + relativedelta(years=12, days=1)
+                print("You are bat mitzvah on:", bar_mitzvah_date.strftime("%Y-%m-%d"))
+                break  # exit the loop
+            elif choice == "M":
+                # ---- compute 13 years + 1 day ----
+                bar_mitzvah_date = greg_date + relativedelta(years=13, days=1)
+                print("You are bar mitzvah on:", bar_mitzvah_date.strftime("%Y-%m-%d"))
+                break  # exit the loop
+            else:
+                print("Invalid choice. Please try again.\n")
+
         # compute closest Shabbat on/after 13+1
         def next_shabbat(d):
             # Monday=0 ... Saturday=5, Sunday=6
             days_ahead = (5 - d.weekday()) % 7
-            if days_ahead == 0:   # strictly after
+            if days_ahead == 0:   
                 days_ahead = 7
             return d + timedelta(days=days_ahead)
 
         shabbat_date = next_shabbat(bar_mitzvah_date)
-
-        # print("Shabbat date:", shabbat_date)
-        # print("Weekday number:", shabbat_date.weekday())  # should be 5
-        # if shabbat_date.weekday() == 5:
-        #     print("✅ This is Saturday")
-        # else:
-        #     print("❌ This is not Saturday")
 
         # ---- API call 2 ----
         url = "https://www.hebcal.com/leyning"
@@ -89,15 +101,13 @@ while True:
 
         items = data.get("items", [])
         if not items:
-            print("No leyning returned for that date.")
+            print("No parsha returned for that date.")
         else:
             shab_str = shabbat_date.strftime("%Y-%m-%d")
             item = next((it for it in items if it.get("date") == shab_str), items[0])
             name_en = (item.get("name") or {}).get("en")
             print("The Shabbat of your bar mitzvah is:", shab_str)
             print("Parsha:", name_en or "(unknown)")
-            if name_he:
-                print("Parsha (he):", name_he)
 
         input("\nPress Enter to return to the menu...")
 
