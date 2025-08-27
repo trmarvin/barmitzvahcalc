@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import requests
 
@@ -38,7 +38,7 @@ while True:
                 continue
             break  # valid date
 
-        # ---- API call ----
+        # ---- API call 1 ----
         url = "https://www.torahcalc.com/api/dateconverter/gregtoheb"
         params = {
             "year": greg_date.year,
@@ -55,12 +55,35 @@ while True:
         except Exception as e:
             print("There was a problem fetching the Hebrew date.")
 
+        # ---- compute 13 years + 1 day ----
+        bar_mitzvah_date = greg_date + relativedelta(years=13, days=1)
+        print("You became bar mitzvah on:", bar_mitzvah_date.strftime("%Y-%m-%d"))
+    
+        # compute closest Shabbat on/after 13+1
+        def next_shabbat(d):
+            # Monday=0 ... Saturday=5, Sunday=6
+            days_ahead = (5 - d.weekday()) % 7
+            if days_ahead == 0:   # strictly after
+                days_ahead = 7
+            return d + timedelta(days=days_ahead)
+
+        shabbat_date = next_shabbat(bar_mitzvah_date)
+
+        # ---- API call 2 ----
+        url = "https://www.hebcal.com/leyning"
+        params = {
+            "cfg": "json",
+            "date": shabbat_date.strftime("%Y-%m-%d"),
+            "i": "on",  # Israel readings; use "off" or omit for Diaspora
+            }
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        print("The Shabbat of your bar mitzvah is/was:", shabbat_date.strftime("%Y-%m-%d"))
+
         input("\nPress Enter to return to the menu...")
 
-    # ---- compute 13 years + 1 day FIRST ----
-        bar_mitzvah_date = greg_date + relativedelta(years=13, days=1)
-        print("Your thirtheenth birthday:", bar_mitzvah_date.strftime("%Y-%m-%d"))
-    
     elif choice == "B":
         print("Enjoy your special parsha! Goodbye!")
         break
