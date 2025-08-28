@@ -36,7 +36,7 @@ while True:
                 continue
             break  # valid date
 
-        # ---- API call 1 ----
+        # ---- API call 1: convert from gregorian to hebrew date ----
         url = "https://www.torahcalc.com/api/dateconverter/gregtoheb"
         params = {
             "year": greg_date.year,
@@ -52,6 +52,7 @@ while True:
         except Exception as e:
             print("There was a problem fetching the Hebrew date.")
 
+        # ---- determine gender to calculate Bar/Bat Mitzvah date ----
         while True:
             print("Please select an option:")
             print("F - I am female")
@@ -82,7 +83,7 @@ while True:
 
         shabbat_date = next_shabbat(bar_mitzvah_date)
 
-        # ---- API call set 2: find parsha ----
+        # ---- API call set 2: find parsha for bar/bat mitzvah date ----
         def get_parsha_name(shabbat_date, israel: bool) -> str | None:
             url = "https://www.hebcal.com/leyning"
             params = {
@@ -127,35 +128,11 @@ while True:
 
         except requests.RequestException as e:
             print("Problem fetching parsha data:", e)
-        # try:
-        #     parsha_israel   = get_parsha_name(shabbat_date, israel=True)
-        #     parsha_diaspora = get_parsha_name(shabbat_date, israel=False)
-
-        #     print("The Shabbat of your bar mitzvah is:", shab_str)
-        #     print("Parsha (Israel):  ", parsha_israel or "(unknown)")
-        #     print("Parsha (Diaspora):", parsha_diaspora or "(unknown)")
-        # except requests.RequestException as e:
-        #     print("Problem fetching parsha data:", e)
 
         name_israel   = parsha_israel.strip().lower()
         name_diaspora = parsha_diaspora.strip().lower()
         
-        # ---- API 3: parsha info ----
-
-        # def sefaria_ref_for_parsha(parsha_name: str) -> str | None:
-        #     url = f"https://www.sefaria.org/api/calendars/next-read/{parsha_name.strip()}"
-        #     r = requests.get(url)
-        #     r.raise_for_status()
-        #     nx = r.json()
-        #     # The ref lives here:
-        #     return (nx.get("parasha") or {}).get("ref")
-
-        # ref = sefaria_ref_for_parsha(parsha_israel)
-        # print(ref)
-
-        # ref = sefaria_ref_for_parsha(parsha_diaspora)
-        # print(ref)
-
+        # ---- API 3: get next read time info from Sefaria ----
         def next_parsha_info(parsha_name: str):
             url = f"https://www.sefaria.org/api/calendars/next-read/{parsha_name.strip()}"
             r = requests.get(url, timeout=10)
@@ -178,7 +155,7 @@ while True:
                 "heb_date": he_date
             }
 
-        # ---- Usage ----
+        # ---- print next time parsha will be read ----
         info_israel   = next_parsha_info(parsha_israel)
         info_diaspora = next_parsha_info(parsha_diaspora)
 
@@ -198,7 +175,7 @@ while True:
                 host="localhost",
                 port="5432"
             )
-
+        # ---- DB: fetch parsha summary ----
         def fetch_parsha_row(conn, name: str):
             sql = """
                 SELECT name_eng, book_eng, summary
@@ -220,7 +197,7 @@ while True:
             if hit:
                 return [hit]
 
-            # Try splitting on hyphen/dash
+            # Try splitting on hyphen/dash (for doubled parshas)
             parts = re.split(r"[-–—]", name)
             results = []
             for part in parts:
