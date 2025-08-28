@@ -2,7 +2,8 @@ from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from urllib.parse import quote
 import requests
-
+import psycopg2
+import re
 
 GREGORIAN_START = date(1582, 10, 15)
 
@@ -189,9 +190,68 @@ while True:
             print(f"Israel next reads {parsha_israel} on {info_israel['greg_date']} / {info_israel['heb_date']}.")
             print(f"Diaspora reads: {parsha_diaspora} on {info_diaspora['greg_date']} / {info_diaspora['heb_date']}.")
 
-        # print(f"Next time your parsha will be read in Israel: {info_israel['greg_date']} / {info_israel['heb_date']}")
-        # print(f"Next time your parsha will be read in the Diaspora: {info_diaspora['greg_date']} / {info_diaspora['heb_date']}")
+        def get_conn():
+            return psycopg2.connect(
+                dbname="parsha",
+                user="postgres",       
+                password="07Nathan30!",   
+                host="localhost",
+                port="5432"
+            )
 
+        def fetch_parsha_row(conn, name: str):
+            sql = """
+                SELECT name_eng, book_eng, summary
+                FROM public.parsha_summaries
+                WHERE name_eng ILIKE %s
+                LIMIT 1;
+            """
+            with conn.cursor() as cur:
+                cur.execute(sql, (name,))
+                row = cur.fetchone()
+                if row:
+                    name_eng, book_eng, summary = row
+                    return {"name_eng": name_eng, "book_eng": book_eng, "summary": summary}
+            return None
+
+        def fetch_parsha_flexible(conn, raw_name: str):
+            name = raw_name.strip()
+            hit = fetch_parsha_row(conn, name)
+            if hit:
+                return [hit]
+
+            # Try splitting on hyphen/dash
+            parts = re.split(r"[-–—]", name)
+            results = []
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+                row = fetch_parsha_row(conn, part)
+                if row:
+                    results.append(row)
+            return results
+
+        def show_parsha_info(parsha_israel: str, parsha_diaspora: str):
+            same = parsha_israel.strip().lower() == parsha_diaspora.strip().lower()
+
+            with get_conn() as conn:
+                names = [parsha_israel] if same else [parsha_israel, parsha_diaspora]
+
+                for nm in names:
+                    rows = fetch_parsha_flexible(conn, nm)
+                    if not rows:
+                        print(f"\nNo match found for '{nm}'.")
+                        continue
+
+                    label = "Israel & Diaspora" if same else ("Israel" if nm == parsha_israel else "Diaspora")
+                    # print(f"\n{label}: {nm}")
+                    for r in rows:
+                        print(f"• {r['name_eng']} summary — from Sefer {r['book_eng']}")
+                        print(r["summary"])
+
+        print(show_parsha_info(parsha_israel, parsha_diaspora))
+        
         input("\nPress Enter to return to the menu...")
 
     elif choice == "B":
