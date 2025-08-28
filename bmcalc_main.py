@@ -250,7 +250,7 @@ while True:
                         print(f"• {r['name_eng']} summary — from Sefer {r['book_eng']}")
                         print(r["summary"])
 
-        print(show_parsha_info(parsha_israel, parsha_diaspora))
+        show_parsha_info(parsha_israel, parsha_diaspora)
         
         input("\nPress Enter to return to the menu...")
 
